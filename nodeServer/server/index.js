@@ -1,7 +1,7 @@
 const express = require('express')
 const server = express()
 const formidableMiddleware = require('express-formidable')
-const method = require('./method.js');
+const method = require('./method.js')
 const request = require('request')
 
 server.use(formidableMiddleware())

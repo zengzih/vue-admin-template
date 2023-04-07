@@ -1,6 +1,6 @@
-const connect = require('../connect/index');
-const encrypt = require("../../src/utils/encryptByAES.js");
-const {httpRequest, queryParams} = require("../../src/utils/httpRequest.js");
+const connect = require('../connect/index')
+const encrypt = require("../../src/utils/encryptByAES.js")
+const {httpRequest, queryParams} = require("../../src/utils/httpRequest.js")
 
 class RequestMethod {
 	constructor() {
