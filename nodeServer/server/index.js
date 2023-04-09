@@ -3,6 +3,7 @@ const server = express()
 const formidableMiddleware = require('express-formidable')
 const method = require('./method.js')
 const request = require('request')
+const fs = require('fs')
 
 server.use(formidableMiddleware())
 server.use((req, res, next) => {
@@ -58,17 +59,17 @@ const getConcreteRankList = (rankingListId) => {
 server.use(express.json())
 server.use(express.urlencoded({ extended: true }))
 server.get('/getCourseAll', async(req, res) => {
-  method.getAllCourse('1', (result)=> {
-    console.log('result:', result);
+  method.getAllCourse('1', (result) => {
+    console.log('result:', result)
     res.send(result)
   })
-});
+})
 
-server.get('/login', (req, res)=> {
-  console.log(req.query);
+server.get('/login', (req, res) => {
+  console.log(req.query)
   method.login(req.query).then(data => {
     res.send(JSON.parse(data))
-  });
+  })
 })
 
 server.get('/getDetail', async(req, res) => {
@@ -77,6 +78,37 @@ server.get('/getDetail', async(req, res) => {
   getDetail(albumId).then(data => {
     res.send(data)
   })
+})
+
+server.get('/proxy', async(req, res) => {
+  const { url } = req.query
+  const dir = `${__dirname}/images`
+  console.log(url)
+  const arr = url.split(/\.(jpg|png)/)[0].split('/')
+  const filename = arr[arr.length - 1]
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Credentials', true)
+  request(url).pipe(fs.createWriteStream(dir + filename)).on('close', () => {
+    res.sendFile(dir + filename, () => {
+      fs.unlinkSync(dir + filename)
+    })
+  })
+})
+
+server.get('/getChapter', (req, res) => {
+  method.getChapter(req.query, (result) => res.send(result))
+})
+
+server.get('/getAnswerStatus', (req, res) => {
+  method.getAnswerStatus(req.query).then(result => res.send(result))
+})
+
+server.get('/playChapterVideo', (req, res) => {
+  method.playVideo(req.query).then(result => res.send(result))
+})
+
+server.get('/initdatawithviewerV2', (req, res) => {
+  method.initDataWithViewerV2(req.query).then(result => res.send(result))
 })
 
 server.listen(8848, () => {

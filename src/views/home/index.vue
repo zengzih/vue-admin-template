@@ -1,15 +1,18 @@
 <template>
   <div class="wrapper">
     <div class="panel-list">
-      <div v-for="item in courseData" :key="item.course_id" class="panel-group">
+      <div v-for="item in courseData" :key="item.course_id" @click="handleCourse(item)" class="panel-group">
         <div class="card-panel-col">
           <div class="card-panel" @click="handleSetLineChartData('newVisitis')">
             <div class="card-panel-icon-wrapper icon-people">
-              <img :src="item" alt="">
+              <img :src="`${baseHost}proxy?url=${item.course_cover}`" alt="">
             </div>
             <div class="card-panel-description">
               <div class="card-panel-text">{{ item.course_name }}</div>
-              <count-to :start-val="0" :end-val="102400" :duration="2600" class="card-panel-num" />
+              <div style="text-align:right;">
+                <count-to :start-val="0" :end-val="item.isPassedCount || 0" :duration="2600" class="card-panel-num" />/
+                <count-to :start-val="0" :end-val="item.chapterCount" :duration="2600" class="card-panel-num" />
+              </div>
             </div>
           </div>
         </div>
@@ -20,7 +23,7 @@
 
 <script>
 import CountTo from 'vue-count-to'
-import { getCourseAll } from '@/apis'
+import { baseHost, getCourseAll } from '@/apis'
 
 export default {
   components: {
@@ -29,6 +32,8 @@ export default {
 
   data() {
     return {
+      baseHost,
+      courseIds: {},
       courseData: []
     }
   },
@@ -43,6 +48,11 @@ export default {
     },
     async getCourseAll() {
       this.courseData = await getCourseAll()
+      console.log('this.courseData:', this.courseData)
+    },
+
+    handleCourse({ course_id }) {
+      this.$router.push({ name: 'Chapter', query: { course_id }})
     }
   }
 }

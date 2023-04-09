@@ -4,7 +4,7 @@ import Router from 'vue-router'
 Vue.use(Router)
 
 /* Layout */
-import Layout from '@/layout'
+// import Layout from '@/layout'
 
 export const constantRoutes = [
   {
@@ -21,6 +21,21 @@ export const constantRoutes = [
 
   {
     path: '/',
+    name: 'Course',
+    component: () => import('@/views/home/index'),
+    meta: { title: 'Form', icon: 'form' }
+  },
+
+  {
+    path: '/chapter',
+    name: 'Chapter',
+    component: () => import('@/views/chapter/index'),
+    meta: { title: 'Form', icon: 'form' }
+  },
+  /*
+
+  {
+    path: '/home',
     component: Layout,
     children: [
       {
@@ -28,9 +43,15 @@ export const constantRoutes = [
         name: 'Home',
         component: () => import('@/views/home/index'),
         meta: { title: 'Form', icon: 'form' }
+      },
+      {
+        path: 'chapter',
+        name: 'Chapter',
+        component: () => import('@/views/chapter/index'),
+        meta: { title: 'Form', icon: 'form' }
       }
     ]
-  },
+  }, */
   // 404 page must be placed at the end !!!
   { path: '*', redirect: '/404', hidden: true }
 ]
