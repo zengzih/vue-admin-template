@@ -1,7 +1,7 @@
 const connect = require('../connect/index')
 const encrypt = require('../../src/utils/encryptByAES.js')
 const { httpRequest } = require('../../src/utils/httpRequest.js')
-const { formatSeconds } = require('../../src/utils/index.js')
+const { sleep } = require('../../src/utils/index.js')
 const md5 = require('js-md5')
 // const wsServer = require('./websocketServer.js')
 
@@ -13,6 +13,7 @@ class RequestMethod {
 
   getEnc({ clazzId, userid, jobid, objectId, playingTime, duration }) {
     const enc = `[${clazzId}][${userid}][${jobid}][${objectId}][${playingTime * 1000}][d_yHJ!$pdA~5][${(duration * 1000).toString()}][0_${duration}]`
+    console.log('enc:', enc)
     return md5(enc)
   }
 
@@ -75,32 +76,22 @@ class RequestMethod {
     return httpRequest('initData', query, 'get')
   }
 
-  playVideo(query) {
-    const { chapter_id, duration, isdrag } = query
-    let timer = null
+  updateChapterStatus(chapter_id) {
+    connect.query(`update chapterTable set is_passed = 1 where chapter_id = ${chapter_id}`)
+  }
+
+  applyLoopVideo(query) {
     return new Promise((resolve, reject) => {
       httpRequest('playVideo', query, 'get').then(res => {
         try {
           const data = JSON.parse(res)
-          console.log('playVideo:', res)
           const { isPassed } = data
           if (isPassed === undefined) {
             return reject(data)
           }
-          /* if (isPassed === false && Number(isdrag) === 3) {
-            clearTimeout(timer)
-            timer = setTimeout(() => {
-              query.playingTime = Number(duration)
-              query.isdrag = 4
-              query.enc = this.getEnc(query)
-              query._t = new Date().getTime()
-              console.log('***********时间到开始调用,总时长:', formatSeconds(duration))
-              clearTimeout(timer)
-              this.playVideo(query)
-            }, 200 * 1000)
-          } */
           if (isPassed) {
-            connect.query(`update chapterTable set is_passed = 1 where chapter_id = ${chapter_id}`)
+            const { chapter_id } = query
+            this.updateChapterStatus(chapter_id)
           }
           resolve(data)
         } catch (e) {
@@ -109,11 +100,53 @@ class RequestMethod {
       })
     })
   }
+
+  async playVideo(query) {
+    const { duration, chapter_id } = query
+    let timeCount = 0
+    let timer = null
+    const res = await this.applyLoopVideo(query)
+    if (res.isPassed) return Promise.resolve(res)
+    /* const handleLoop = async(query) => {
+      await sleep(60)
+      query._t = new Date().getTime()
+      if (timeCount >= Number(duration)) {
+        query.playingTime = duration
+        query.isdrag = 4
+        query.enc = this.getEnc(query)
+        console.log('------end------')
+        return this.applyLoopVideo(query)
+      }
+      timeCount += 60
+      query.playingTime = timeCount
+      query.enc = this.getEnc(query)
+      console.log('-----playingTime:', timeCount)
+      this.applyLoopVideo(query)
+      handleLoop(query)
+    }
+    handleLoop(query)*/
+    timer = setInterval(async() => {
+      query._t = new Date().getTime()
+      timeCount += 1
+      if (timeCount >= Number(duration)) {
+        console.log('-----end-----', duration)
+        query.playingTime = duration
+        query.isdrag = 4
+        query.enc = this.getEnc(query)
+        clearInterval(timer)
+        return this.applyLoopVideo(query)
+      }
+      query.playingTime = timeCount
+      query.enc = this.getEnc(query)
+      const data = await this.applyLoopVideo(query)
+      if (data.isPassed) {
+        this.updateChapterStatus(chapter_id)
+        clearInterval(timer)
+      }
+    }, 1000)
+  }
 }
-// Request URL: https://mooc1.chaoxing.com/ananas/status/20ae62a0db8e935c1278314eb2076a5b?k=12007&flag=normal&_dc=1680955927508获取37aa562207daa99a23e83f8d5c34b033
-
 const requestMethod = new RequestMethod()
-
 // requestMethod.login({ uname: 19392948031, password: 'lj200204171693' })
 
 module.exports = requestMethod

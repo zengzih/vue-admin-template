@@ -65,8 +65,9 @@ export default {
     async handleStart(row) {
       const { cpi, attachments = '{}', courseId, user_id: userid, clazzid: clazzId, chapter_id } = row
       const { attachments: [{ objectId, otherInfo, jobid, mid }] } = JSON.parse(attachments)
-      const { dtoken, status, duration } = await getAnswerStatus({ cpi, objectId, k: 12007, flag: 'normal', _dc: new Date().getTime() })
-      if (status === 'success') {
+      const statusData = await getAnswerStatus({ cpi, objectId, k: 12007, flag: 'normal', _dc: new Date().getTime() })
+	  const { dtoken, status, duration } = statusData
+	  if (status === 'success') {
         /* const tempFunc = (isdrag) => {
           let playingTime = 0
           if (isdrag === 3) {
@@ -84,17 +85,19 @@ export default {
         const callFunc = (isdrag, playingTime = 0) => {
           const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime, objectId, otherInfo, courseId, clazzId, jobid, userid, isdrag, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
           playChapterVideo({ ...params, enc: this.getEnc(params) }).then(res => {
-            if (!res.isPassed && isdrag === 3) {
+			console.log(res)
+            /* if (!res.isPassed && isdrag === 3) {
               setTimeout(() => {
                 console.log('setTime')
                 callFunc(4, params.duration)
               }, 180 * 1000)
-            }
+            }*/
           })
         }
-        initData({ mid, cpi, classid: clazzId, _dc: new Date().getTime() }).then(res => {
-          callFunc(3)
-        })
+		  callFunc(3)
+        // initData({ mid, cpi, classid: clazzId, _dc: new Date().getTime() }).then(res => {
+        //   callFunc(3)
+        // })
       }
     }
   }

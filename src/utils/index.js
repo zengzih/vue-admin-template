@@ -143,6 +143,10 @@ const formatSeconds = (value) => {
   }
   return result
 }
+
+const sleep = (timeout = 1) => new Promise(resolve => setTimeout(resolve, timeout * 1000))
+
 module.exports = {
+  sleep,
   formatSeconds
 }
