@@ -3,26 +3,29 @@
     <el-table
       :data="tableData"
       stripe
-      style="width: 100%">
+      style="width: 100%"
+    >
       <el-table-column
         prop="catalog_name"
         label="课程单元"
-        min-width="200">
-      </el-table-column>
+        min-width="200"
+      />
       <el-table-column
         prop="chapter_name"
         label="课程章节"
-        min-width="300">
-      </el-table-column>
+        min-width="300"
+      />
       <el-table-column
         prop="is_passed"
         align="center"
-        label="状态">
+        label="状态"
+      >
         <template slot-scope="{ row }">
           <el-tag
             :key="row.chapter_id"
             :type="row.is_passed ? '' : 'danger'"
-            effect="dark">
+            effect="dark"
+          >
             {{ row.is_passed ? '已完成' : '未完成' }}
           </el-tag>
         </template>
@@ -31,7 +34,8 @@
         prop="address"
         min-width="100"
         align="center"
-        label="操作">
+        label="操作"
+      >
         <template slot-scope="{ row }">
           <el-button type="mini" @click="handleStart(row)">开始</el-button>
         </template>
@@ -85,7 +89,7 @@ export default {
         const callFunc = (isdrag, playingTime = 0) => {
           const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime, objectId, otherInfo, courseId, clazzId, jobid, userid, isdrag, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
           playChapterVideo({ ...params, enc: this.getEnc(params) }).then(res => {
-			console.log(res)
+            console.log(res)
             /* if (!res.isPassed && isdrag === 3) {
               setTimeout(() => {
                 console.log('setTime')
@@ -112,7 +116,7 @@ ws.onmessage = (message) => {
   console.log(`Received message: ${message.data}`)
 }
 ws.onclose = (event) => {
-  console.log(`Connection closed with code ${event.code} and reason ${event.reason}`);
+  console.log(`Connection closed with code ${event.code} and reason ${event.reason}`)
 }
 
 </script>
