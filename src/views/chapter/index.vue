@@ -64,40 +64,15 @@ export default {
 
     async handleStart(row) {
       const { cpi, attachments = '{}', courseId, user_id: userid, clazzid: clazzId, chapter_id } = row
-      const { attachments: [{ objectId, otherInfo, jobid, mid }] } = JSON.parse(attachments)
+      const { attachments: [{ objectId, otherInfo, jobid }] } = JSON.parse(attachments)
       const statusData = await getAnswerStatus({ cpi, objectId, k: 12007, flag: 'normal', _dc: new Date().getTime() })
-	  const { dtoken, status, duration } = statusData
-	  if (status === 'success') {
-        /* const tempFunc = (isdrag) => {
-          let playingTime = 0
-          if (isdrag === 3) {
-            const minPlayMinutes = Number(duration) / 2
-            playingTime = minPlayMinutes > 60 ? minPlayMinutes : 60
-          }
-          const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime, objectId, otherInfo, courseId, clazzId, jobid, userid, isdrag, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
-          playChapterVideo({ ...params, enc: this.getEnc(params) }).then(res => {
-            if (!res.isPassed && isdrag === 1) {
-              tempFunc(3)
-            }
-          })
-        }
-        tempFunc(1) */
+      const { dtoken, status, duration } = statusData
+      if (status === 'success') {
         const callFunc = (isdrag, playingTime = 0) => {
           const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime, objectId, otherInfo, courseId, clazzId, jobid, userid, isdrag, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
-          playChapterVideo({ ...params, enc: this.getEnc(params) }).then(res => {
-			console.log(res)
-            /* if (!res.isPassed && isdrag === 3) {
-              setTimeout(() => {
-                console.log('setTime')
-                callFunc(4, params.duration)
-              }, 180 * 1000)
-            }*/
-          })
+          playChapterVideo({ ...params, enc: this.getEnc(params) }).then(res => console.log(res))
         }
-		  callFunc(3)
-        // initData({ mid, cpi, classid: clazzId, _dc: new Date().getTime() }).then(res => {
-        //   callFunc(3)
-        // })
+        callFunc(3)
       }
     }
   }
