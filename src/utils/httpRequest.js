@@ -84,7 +84,7 @@ const httpRequest = (url, params, method = 'get', headers) => {
   url = replaceUrlBooth(getHost(interfaceMap, url), params)
   headers = headers || defaultHeaders
   const URL = method === 'get' ? queryParams(params, url) : url
-  console.log('url:', URL)
+  // console.log('url:', URL)
   return new Promise((resolve, reject) => {
     request({
       url: URL,
@@ -92,7 +92,7 @@ const httpRequest = (url, params, method = 'get', headers) => {
       headers,
       form: method === 'get' ? {} : params
     }, (err, res) => {
-      console.log('*******res:', res.body)
+      // console.log('*******res:', res.body)
       if (/login/i.test(URL)) {
         headers.Cookie = res.headers['set-cookie'].join(';')
       }

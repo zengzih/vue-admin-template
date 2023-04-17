@@ -4,6 +4,9 @@ const formidableMiddleware = require('express-formidable')
 const method = require('./method.js')
 const request = require('request')
 const fs = require('fs')
+const start = require('./start.js')
+
+start()
 
 server.use(formidableMiddleware())
 server.use((req, res, next) => {
