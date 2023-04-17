@@ -3,29 +3,26 @@
     <el-table
       :data="tableData"
       stripe
-      style="width: 100%"
-    >
+      style="width: 100%">
       <el-table-column
         prop="catalog_name"
         label="课程单元"
-        min-width="200"
-      />
+        min-width="200">
+      </el-table-column>
       <el-table-column
         prop="chapter_name"
         label="课程章节"
-        min-width="300"
-      />
+        min-width="300">
+      </el-table-column>
       <el-table-column
         prop="is_passed"
         align="center"
-        label="状态"
-      >
+        label="状态">
         <template slot-scope="{ row }">
           <el-tag
             :key="row.chapter_id"
             :type="row.is_passed ? '' : 'danger'"
-            effect="dark"
-          >
+            effect="dark">
             {{ row.is_passed ? '已完成' : '未完成' }}
           </el-tag>
         </template>
@@ -34,8 +31,7 @@
         prop="address"
         min-width="100"
         align="center"
-        label="操作"
-      >
+        label="操作">
         <template slot-scope="{ row }">
           <el-button type="mini" @click="handleStart(row)">开始</el-button>
         </template>
@@ -68,40 +64,15 @@ export default {
 
     async handleStart(row) {
       const { cpi, attachments = '{}', courseId, user_id: userid, clazzid: clazzId, chapter_id } = row
-      const { attachments: [{ objectId, otherInfo, jobid, mid }] } = JSON.parse(attachments)
+      const { attachments: [{ objectId, otherInfo, jobid }] } = JSON.parse(attachments)
       const statusData = await getAnswerStatus({ cpi, objectId, k: 12007, flag: 'normal', _dc: new Date().getTime() })
-	  const { dtoken, status, duration } = statusData
-	  if (status === 'success') {
-        /* const tempFunc = (isdrag) => {
-          let playingTime = 0
-          if (isdrag === 3) {
-            const minPlayMinutes = Number(duration) / 2
-            playingTime = minPlayMinutes > 60 ? minPlayMinutes : 60
-          }
-          const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime, objectId, otherInfo, courseId, clazzId, jobid, userid, isdrag, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
-          playChapterVideo({ ...params, enc: this.getEnc(params) }).then(res => {
-            if (!res.isPassed && isdrag === 1) {
-              tempFunc(3)
-            }
-          })
-        }
-        tempFunc(1) */
+      const { dtoken, status, duration } = statusData
+      if (status === 'success') {
         const callFunc = (isdrag, playingTime = 0) => {
           const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime, objectId, otherInfo, courseId, clazzId, jobid, userid, isdrag, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
-          playChapterVideo({ ...params, enc: this.getEnc(params) }).then(res => {
-            console.log(res)
-            /* if (!res.isPassed && isdrag === 3) {
-              setTimeout(() => {
-                console.log('setTime')
-                callFunc(4, params.duration)
-              }, 180 * 1000)
-            }*/
-          })
+          playChapterVideo({ ...params, enc: this.getEnc(params) }).then(res => console.log(res))
         }
-		  callFunc(3)
-        // initData({ mid, cpi, classid: clazzId, _dc: new Date().getTime() }).then(res => {
-        //   callFunc(3)
-        // })
+        callFunc(3)
       }
     }
   }
@@ -116,7 +87,7 @@ ws.onmessage = (message) => {
   console.log(`Received message: ${message.data}`)
 }
 ws.onclose = (event) => {
-  console.log(`Connection closed with code ${event.code} and reason ${event.reason}`)
+  console.log(`Connection closed with code ${event.code} and reason ${event.reason}`);
 }
 
 </script>

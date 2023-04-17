@@ -3,6 +3,7 @@ const encrypt = require('../../src/utils/encryptByAES.js')
 const { httpRequest } = require('../../src/utils/httpRequest.js')
 const { sleep } = require('../../src/utils/index.js')
 const md5 = require('js-md5')
+// const { getAnswerStatus } = require('@/apis')
 // const wsServer = require('./websocketServer.js')
 
 class RequestMethod {
@@ -80,6 +81,30 @@ class RequestMethod {
     connect.query(`update chapterTable set is_passed = 1 where chapter_id = ${chapter_id}`)
   }
 
+  commitExam() {
+    // 视频完成之后做作业
+    const query = {
+      _classId: '',
+      courseid: '',
+      token: '', // ?
+      totalQuestionNum: '',
+      workid: '',
+      cpi: '',
+      jobid: '',
+      knowledgeid: '',
+      ua: 'pc',
+      formType: 'post',
+      saveStatus: 1,
+      pos: '', // ?
+      rd: '', // ?
+      value: '',
+      wid: '',
+      _edt: '',
+      versio: 1
+    }
+    console.log(query)
+  }
+
   applyLoopVideo(query) {
     return new Promise((resolve, reject) => {
       httpRequest('playVideo', query, 'get').then(res => {
@@ -92,6 +117,7 @@ class RequestMethod {
           if (isPassed) {
             const { chapter_id } = query
             this.updateChapterStatus(chapter_id)
+            this.commitExam(chapter_id)
           }
           resolve(data)
         } catch (e) {
@@ -101,31 +127,27 @@ class RequestMethod {
     })
   }
 
+  getIncompleteChapter() {
+    // 查询未完成任务
+    connect.query(`select * from chapterTable where is_passed = 0`, async (err, result) => {
+      if (!err) {
+        if (result && result.length) {
+          const [row] = result
+          const { cpi, attachments = '{}', course_id, user_id: userid, clazzid: clazzId, chapter_id } = row
+          const { attachments: [{ objectId, otherInfo, jobid }] } = JSON.parse(attachments)
+          const { dtoken, status, duration } = await this.getAnswerStatus({ cpi, objectId, k: 12007, flag: 'normal', _dc: new Date().getTime() })
+          console.log(dtoken, status, duration)
+        }
+      }
+    })
+  }
+
   async playVideo(query) {
     const { duration, chapter_id } = query
     let timeCount = 0
-    let timer = null
     const res = await this.applyLoopVideo(query)
     if (res.isPassed) return Promise.resolve(res)
-    /* const handleLoop = async(query) => {
-      await sleep(60)
-      query._t = new Date().getTime()
-      if (timeCount >= Number(duration)) {
-        query.playingTime = duration
-        query.isdrag = 4
-        query.enc = this.getEnc(query)
-        console.log('------end------')
-        return this.applyLoopVideo(query)
-      }
-      timeCount += 60
-      query.playingTime = timeCount
-      query.enc = this.getEnc(query)
-      console.log('-----playingTime:', timeCount)
-      this.applyLoopVideo(query)
-      handleLoop(query)
-    }
-    handleLoop(query)*/
-    timer = setInterval(async() => {
+    const timer = setInterval(async() => {
       query._t = new Date().getTime()
       timeCount += 1
       if (timeCount >= Number(duration)) {
@@ -148,6 +170,8 @@ class RequestMethod {
 }
 const requestMethod = new RequestMethod()
 // requestMethod.login({ uname: 19392948031, password: 'lj200204171693' })
+
+requestMethod.getIncompleteChapter()
 
 module.exports = requestMethod
 
