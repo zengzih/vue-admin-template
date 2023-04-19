@@ -53,8 +53,16 @@ const updateChapterScore = (values, chapterId)=> {
     });
 }
 
+const insertUserTable = (values)=> {
+  const sql = `insert into userTable(phone, password, user_name, user_id) values ? on duplicate key update user_id = values(user_id)`;
+  connection.query(sql, [values], (err)=> {
+    console.log('******sql:', err, sql)
+  })
+}
+
 module.exports = {
     insetUser,
+    insertUserTable,
     insertCourseTable,
     insertChapterTable,
     updateChapterScore,

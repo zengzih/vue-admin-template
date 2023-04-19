@@ -74,6 +74,10 @@ const interfaceMap = {
 		doHomeWorkNew: 'work/doHomeWorkNew'
 	},
 
+  'http://i.mooc.chaoxing.com': {
+    userInfo: 'space/index'
+  },
+
 	'https://mooc2-ans.chaoxing.com': {
 		studentCourse: 'mooc2-ans/mycourse/studentcourse'
 	},
@@ -120,7 +124,7 @@ const httpRequest = (req_url, params, method='get')=> {
 module.exports = {
 	sleep,
 	queryParams,
-	httpRequest,
+	// httpRequest,
 	getQueryParams,
 	base64StrToFont
 };

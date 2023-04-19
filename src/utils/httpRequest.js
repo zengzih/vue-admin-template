@@ -1,4 +1,5 @@
-const request = require('request')
+let request = require('request')
+request = request.defaults({jar: true})
 const queryParams = (params, url) => {
   const result = []
   for (const key in params) {
@@ -52,11 +53,23 @@ const interfaceMap = {
     playVideo: 'multimedia/log/a/{cpi}/{dtoken}',
     answerStatus: 'ananas/status/{objectId}',
     initData: 'richvideo/initdatawithviewerV2',
-    courseAll: 'visit/courselistdata'
+    courseAll: 'visit/courselistdata',
+    studentStudyAjax: 'mycourse/studentstudyAjax',
+    work: 'api/work',
+    transfer: 'mycourse/transfer',
+    doHomeWorkNew: 'work/doHomeWorkNew'
+  },
+
+  'http://i.mooc.chaoxing.com': {
+    userInfo: 'space/index'
   },
 
   'https://mooc2-ans.chaoxing.com': {
     studentCourse: 'mooc2-ans/mycourse/studentcourse'
+  },
+
+  'https://mooc1-1.chaoxing.com': {
+    courseAll: 'visit/courselistdata'
   }
 }
 
@@ -94,7 +107,8 @@ const httpRequest = (url, params, method = 'get', headers) => {
     }, (err, res) => {
       // console.log('*******res:', res.body)
       if (/login/i.test(URL)) {
-        headers.Cookie = res.headers['set-cookie'].join(';')
+        // headers.Cookie = res.headers['set-cookie'].join(';')
+        request.cookie(res.headers['set-cookie'].join(';'))
       }
       if (!err) return resolve(res.body)
       reject(err)
