@@ -374,7 +374,6 @@ const getCourseAll = ({uname, password}, includeCourse=[]) => {
     const userName = await getUserName();
     await insertUserTable([[uname, password, userName, userId]])
     let num = 0
-    const courseLinkResult = []
     while (num < list.length) {
       console.log(`*************************${num}/${list.length}*************************`)
       const item = list[num]
