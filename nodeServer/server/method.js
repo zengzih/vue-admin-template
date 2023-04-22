@@ -178,21 +178,26 @@ class RequestMethod {
           this.currentNum = 0
         }
       }
-    }, 1000)
+    }, 10000)
   }
 
-  start() {
+  start(user_id) {
     // eslint-disable-next-line handle-callback-err
-    connect.query('select * from chapterTable where is_passed=0', async(err, result) => {
-      if (!err && result && result.length) {
-        const [{ cpi, attachments = '{}', course_id, user_id: userid, clazzid: clazzId, chapter_id, chapter_name }] = result
-        const { attachments: [{ objectId, otherInfo, jobid }] } = JSON.parse(attachments)
-        const data = await this.getAnswerStatus({ cpi, objectId, k: 12007, flag: 'normal', _dc: new Date().getTime() })
-        const { dtoken, status, duration } = JSON.parse(data)
-        if (status === 'success') {
-          const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime: 0, objectId, otherInfo, course_id, clazzId, jobid, userid, isdrag: 3, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
-          this.playVideo({ ...params, enc: this.getEnc(params) }, chapter_name).then(res => console.log(res))
-        }
+    connect.query('select course_id from courseTable where user_id=?', [user_id], (err, result)=> {
+      if (!err && result.length) {
+        const [{ course_id }] = result;
+        connect.query(`select * from chapterTable where is_passed=0 and course_id=${course_id}`, async(err, result) => {
+          if (!err && result && result.length) {
+            const [{ cpi, attachments = '{}', course_id, user_id: userid, clazzid: clazzId, chapter_id, chapter_name }] = result
+            const { attachments: [{ objectId, otherInfo, jobid }] } = JSON.parse(attachments)
+            const data = await this.getAnswerStatus({ cpi, objectId, k: 12007, flag: 'normal', _dc: new Date().getTime() })
+            const { dtoken, status, duration } = JSON.parse(data)
+            if (status === 'success') {
+              const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime: 0, objectId, otherInfo, course_id, clazzId, jobid, userid, isdrag: 3, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
+              this.playVideo({ ...params, enc: this.getEnc(params) }, chapter_name).then(res => console.log(res))
+            }
+          }
+        })
       }
     })
   }
@@ -201,6 +206,7 @@ const requestMethod = new RequestMethod()
 // requestMethod.login({ uname: 19392948031, password: 'lj200204171693' })
 
 // requestMethod.getIncompleteChapter()
+
 
 module.exports = requestMethod
 

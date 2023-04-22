@@ -5,7 +5,7 @@ const insertCourseTable = (values)=> {
 };
 
 const insertChapterTable = (values)=> {
-    const sql = 'insert into chapterTable(course_id, chapter_id, chapter_index, chapter_name, catalog_name, catalog_index, cpi, clazzid, attachments, user_id, is_passed) values ? on duplicate key update chapter_id = values(chapter_id)';
+    const sql = 'insert into chapterTable(course_id, chapter_id, chapter_index, chapter_name, catalog_name, catalog_index, cpi, clazzid, attachments, user_id, is_passed) values ? on duplicate key update is_passed = values(is_passed)';
     connection.query(sql, [values], (err)=> {
         console.log(err)
     })
@@ -54,7 +54,7 @@ const updateChapterScore = (values, chapterId)=> {
 }
 
 const insertUserTable = (values)=> {
-  const sql = `insert into userTable(phone, password, user_name, user_id) values ? on duplicate key update user_id = values(user_id)`;
+  const sql = `insert into user(phone, password, user_name, user_id) values ? on duplicate key update user_id = values(user_id)`;
   connection.query(sql, [values], (err)=> {
     console.log('******sql:', err, sql)
   })

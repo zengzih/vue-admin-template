@@ -4,6 +4,8 @@ const connection = require('./sql/index')
 const { workerData, parentPort } = require('worker_threads')
 const { queryParams, getQueryParams, sleep } = require('./utils')
 const { httpRequest } = require('../../src/utils/httpRequest')
+const analysisBase64 = require('../../src/utils/decryptFont/index')
+
 const {
   insertCourseTable,
   insertChapterTable,
@@ -14,8 +16,8 @@ const {
   updateChapterQuestionForm,
   updateChapterScore
 } = require('./sql/insert')
-const { base64StrToFont } = require('./utils')
-const { login } = require('../server/method')
+// const { base64StrToFont } = require('./utils')
+const requestMethod = require('../server/method')
 
 const getStudyInfo = (query) => {
   const url = queryParams('https://mooc1.chaoxing.com/mycourse/studentstudyAjax', query)
@@ -134,30 +136,31 @@ const questionTypeDict = {
   3: 'radio' // 判断
 }
 
-const analysisAnswerHtml = ($, decipherObj, chapterId) => {
+const analysisAnswerHtml = ($, chapterId, base64Str) => {
+  const currying = analysisBase64(base64Str)
   const TiMu = $('#ZyBottom .TiMu')
   let num = 0
   const result = []
   const questionIds = []
   while (num < TiMu.length) {
     const questionItem = TiMu[num]
-    const questionName = $(questionItem).find('div.fontLabel').text()
-    const questionNameChar = questionName.split('')
-    const decipherStr = getDecipherChar(questionNameChar, decipherObj)
-    const answerTypeId = $(questionItem).find('input[type=hidden]').attr('id')
-    const answerTypeVal = getQuestionTypeVal(questionItem, $)
-    const questionList = $(questionItem).find(`li[role=${questionTypeDict[answerTypeVal]}]`) || []
+    const questionName = currying($(questionItem).find('div.fontLabel').text())
+    // const questionNameChar = currying(questionName)
+    // const decipherStr = getDecipherChar(questionNameChar, decipherObj)
+    const questionTypeId = $(questionItem).find('input[type=hidden]').attr('id')
+    const questionTypeVal = getQuestionTypeVal(questionItem, $)
+    const questionList = $(questionItem).find(`li[role=${questionTypeDict[questionTypeVal]}]`) || []
     const answerList = []
     for (let i = 0; i < questionList.length; i++) {
       const questionItem = questionList[i]
-      let answerName = $(questionItem).attr('aria-label')
-      answerName = getDecipherChar(answerName.split(''), decipherObj)
-      const answerId = $(questionItem).find(`input[type=${questionTypeDict[answerTypeVal]}]`).attr('name')
-      const answerVal = $(questionItem).find(`input[type=${questionTypeDict[answerTypeVal]}]`).attr('value')
-      answerList.push({ questionName: answerName.join(''), answerId, answerVal })
+      let answerName = currying($(questionItem).find('a.fl.after').text())
+      // answerName = getDecipherChar(answerName.split(''), decipherObj)
+      const answerId = $(questionItem).find(`input[type=${questionTypeDict[questionTypeVal]}]`).attr('name')
+      const answerVal = $(questionItem).find(`input[type=${questionTypeDict[questionTypeVal]}]`).attr('value')
+      answerList.push({ answerName, answerId, answerVal })
     }
-    questionIds.push(answerTypeId)
-    result.push([answerTypeId, decipherStr.join(''), JSON.stringify(answerList), answerTypeVal])
+    questionIds.push(questionTypeId)
+    result.push([questionTypeId, questionName, JSON.stringify(answerList), questionTypeVal])
     num += 1
   }
   insertQuestionTable(result)
@@ -225,9 +228,10 @@ const getWordAnswerInfo = async(clazzId, courseid, knowledgeid, cpi, enc, utenc,
     updateChapterQuestionForm(JSON.stringify(questionFormData), knowledgeid)
     const matchBase = res.match(/base64,(.*?)'\)/)
     if (matchBase && matchBase.length) {
-      const base64Font = matchBase[1]
-      const filePath = await base64StrToFont(base64Font)
-      return request(`http://localhost:8899/decipher_font?font_path=${filePath}`, (err, result) => {
+      analysisAnswerHtml($, knowledgeid, matchBase[1])
+      // const filePath = await base64StrToFont(base64Font)
+
+      /* return request(`http://localhost:8899/decipher_font?font_path=${filePath}`, (err, result) => {
         if (!err) {
           try {
             const body = JSON.parse(result.body)
@@ -237,7 +241,7 @@ const getWordAnswerInfo = async(clazzId, courseid, knowledgeid, cpi, enc, utenc,
             console.error(e)
           }
         }
-      })
+      }) */
     } else {
       // 尝试获取章节测试分数
       const ZyTop = $('.ZyTop')
@@ -301,7 +305,6 @@ const getStudentCourse = (link) => {
           // courseId, clazzid, chapterId, cpi
           const { examination, video } = await studentStudyAjax(courseid, clazzid, chapterId, cpi)
           // 获取视频相关信息
-          await getQuestionBankInformation(Number(clazzid), Number(courseid), Number(chapterId), Number(cpi), examination)
           const { args: cardsArgs } = await getKnowledgeCards(clazzid, courseid, chapterId, cpi, video)
           const userId = cardsArgs?.defaults?.userid
           if (!chapterMap[catalogTitle]) {
@@ -309,24 +312,38 @@ const getStudentCourse = (link) => {
           }
           if (userId) {
             chapterMap[catalogTitle].push({ chapterId, chapterName, ...cardsArgs })
-            chapterSqlValues.push([Number(courseid), Number(chapterId), n,
+            insertChapterTable([[Number(courseid), Number(chapterId), n,
               chapterName, catalogTitle, i, Number(cpi),
               Number(clazzid), JSON.stringify(cardsArgs),
-              Number(userId), geAttachmentsIsPassed(cardsArgs)])
+              Number(userId), geAttachmentsIsPassed(cardsArgs)]])
+            // chapterSqlValues.push()
             // userSqlValues.push([Number(cardsArgs?.defaults?.userid), Number(chapterId), chapterName, geAttachmentsIsPassed(cardsArgs)]);
           }
+          await getQuestionBankInformation(Number(clazzid), Number(courseid), Number(chapterId), Number(cpi), examination)
         }
         await sleep(30)
       }
       await sleep(30)
     }
-    insertChapterTable(chapterSqlValues)
+    // insertChapterTable(chapterSqlValues)
     // insetUser(userSqlValues);
     // console.log(JSON.stringify(chapterMap))
   })
 }
 
-const include = ['考古与人类', '东南亚文化', '起爆器材Ⅱ', '工程力学']
+
+const isNewUser = (user_id)=> {
+  return new Promise(resolve => {
+    const sql = `select * from user where user_id=?`
+    connection.query(sql, [user_id], (err, result)=> {
+      if (!err && result.length) {
+        return resolve(false)
+      }
+      resolve(true)
+    })
+  })
+
+}
 
 const getUserName = async() => {
   const htmlStr = await httpRequest('userInfo', { t: new Date().getTime() })
@@ -334,7 +351,8 @@ const getUserName = async() => {
   return $('.personalName').text()
 }
 
-const getCourseAll = (phone, password) => {
+const getCourseAll = ({uname, password}, includeCourse=[]) => {
+  if (!includeCourse) return;
   httpRequest('courseAll', {
     courseType: 1,
     courseFolderId: 0,
@@ -349,40 +367,44 @@ const getCourseAll = (phone, password) => {
     }
     const userId = $('#userId').val()
     let list = $('#courseList>li')
-    let num = 0
+    const newUser = await isNewUser(userId)
+    if (!newUser) {
+      return requestMethod.start(userId)
+    }
     const userName = await getUserName();
-    console.log(userName)
-    return;
+    await insertUserTable([[uname, password, userName, userId]])
+    let num = 0
     const courseLinkResult = []
     while (num < list.length) {
       console.log(`*************************${num}/${list.length}*************************`)
       const item = list[num]
       const courseName = $(item).find('.course-name').text()
-      if (!include.includes(courseName)) {
+      console.log(uname, courseName)
+      if (!includeCourse.includes(courseName)) {
         num += 1
         continue
       }
       const link = $(item).find('a').attr('href')
       const courseCover = $(item).find('.course-cover img').attr('src')
       const { courseid, clazzid, cpi } = getQueryParams(link)
-      courseLinkResult.push([Number(courseid), courseName, Number(clazzid), Number(cpi), link, courseCover, userId])
+      insertCourseTable([[Number(courseid), courseName, Number(clazzid), Number(cpi), link, courseCover, userId]])
       link && getStudentCourse(link)
-      await sleep(60)
+      await sleep(30)
       num += 1
     }
-    insertCourseTable(courseLinkResult)
-    // getStudentCourse(courseLinkResult)
-    // getStudentCourse();
-  })
+    // insertCourseTable(courseLinkResult)
+    // methodStart(userId)
+  });
 }
-const start = (data) => {
-  login(data).then(res => {
+
+
+const start = ({ userInfo={}, courseInfo=[] }) => {
+  requestMethod.login(userInfo).then(res => {
     const data = JSON.parse(res)
-    console.log(data)
     if (data.status) {
-      getCourseAll()
+      getCourseAll(userInfo, courseInfo)
     } else {
-      console.error('登录失败:', data)
+      console.error('登录失败:', data, userInfo)
     }
   })
 }

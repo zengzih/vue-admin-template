@@ -46,4 +46,4 @@ const formatSeconds = (value) => {
 module.exports = encryptByAES;
 
 
-console.log(encryptByAES(19392948031))
+// console.log(encryptByAES(19392948031))

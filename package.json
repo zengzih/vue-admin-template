@@ -20,6 +20,7 @@
     "core-js": "3.6.5",
     "crypto-js": "^4.1.1",
     "element-ui": "2.13.2",
+    "eslint-friendly-formatter": "^4.0.1",
     "js-cookie": "2.2.0",
     "js-md5": "^0.7.3",
     "node-schedule": "^2.1.1",
