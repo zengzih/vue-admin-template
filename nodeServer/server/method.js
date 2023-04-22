@@ -3,6 +3,7 @@ const encrypt = require('../../src/utils/encryptByAES.js')
 const { httpRequest } = require('../../src/utils/httpRequest.js')
 const { sleep } = require('../../src/utils/index.js')
 const md5 = require('js-md5')
+const user = require('@/store/modules/user')
 // const { playChapterVideo } = require('@/apis')
 // const { getAnswerStatus } = require('@/apis')
 // const wsServer = require('./websocketServer.js')
@@ -130,55 +131,90 @@ class RequestMethod {
     })
   }
 
-  getIncompleteChapter() {
-    // 查询未完成任务
-    connect.query(`select * from chapterTable where is_passed = 0`, async(err, result) => {
-      if (!err) {
-        if (result && result.length) {
-          const [row] = result
-          const { cpi, attachments = '{}', course_id, user_id: userid, clazzid: clazzId, chapter_id } = row
-          const { attachments: [{ objectId, otherInfo, jobid }] } = JSON.parse(attachments)
-          const { dtoken, status, duration } = await this.getAnswerStatus({ cpi, objectId, k: 12007, flag: 'normal', _dc: new Date().getTime() })
-          console.log(dtoken, status, duration)
+  async getCourseUserName(user_id, course_id) {
+    // 用户名、课程名
+    return new Promise(resolve => {
+      const sql = `select c.course_name, u.user_name from
+                 courseTable c inner join
+                 user u on c.user_id=u.user_id and c.course_id=? and c.user_id=?`
+      connect.query(sql, [course_id, user_id], (err, result)=> {
+        if (!err && result) {
+          const [{ course_name, user_name }] = result;
+          return resolve({ course_name, user_name })
         }
-      }
+        resolve({})
+      })
     })
   }
 
-  async playVideo(query, chapter_name) {
-    const { duration, chapter_id } = query
+  updateRequestPar(query) {
+    query._t = new Date().getTime()
+    const { playingTime } = query;
+    query.playingTime = playingTime + 1;
+    query.enc = this.getEnc(query)
+    return query;
+  }
+
+  async printPlayProgress({ playingTime, duration, course_id }, chapter_name, user_id, playStatus) {
+    const { user_name, course_name } = await this.getCourseUserName(user_id, course_id)
+    if (playStatus) {
+      if (this.currentNum === this.max) {
+        return console.log(`**************${user_name}今日所有任务已完成**************`)
+      }
+      console.log(`************任务：${user_name}--${course_name}--${chapter_name}已完成*************`)
+      return console.log(`********************当前任务${this.currentNum}/${this.max},10s之后再执行**************`)
+    }
+    console.log(`**************任务：${user_name}--${course_name}-${chapter_name}***${playingTime}/${duration}**********`)
+  }
+
+  async recursion(query, chapter_name, user_id) {
+    const { chapter_id } = query;
+    const { isPassed } = await this.applyLoopVideo(query)
+    await this.printPlayProgress(query, chapter_name, user_id, isPassed);
+    this.currentNum += 1
+    if (isPassed) {
+      this.updateChapterStatus(chapter_id)
+      await sleep(10)
+      this.start(user_id)
+    } else {
+      await sleep(5)
+      await this.recursion(this.updateRequestPar(query))
+    }
+  }
+
+  async playVideo(query, chapter_name, user_id) {
+    await this.recursion(query, chapter_name, user_id)
+    /* const { duration, chapter_id, course_id } = query
     let timeCount = 0
     const res = await this.applyLoopVideo(query)
-    if (res.isPassed) return Promise.resolve(res)
+    if (res.isPassed) {
+      this.updateChapterStatus(chapter_id)
+      return Promise.resolve(res)
+    }
     const timer = setInterval(async() => {
       query._t = new Date().getTime()
       timeCount += 1
-      /* if (timeCount >= Number(duration)) {
-        query.playingTime = duration
-        query.isdrag = 4
-        query.enc = this.getEnc(query)
-        clearInterval(timer)
-        return this.applyLoopVideo(query)
-      } */
       query.playingTime = timeCount
       query.enc = this.getEnc(query)
       console.log(`*************************${chapter_name}***${timeCount}/${duration}****************************`)
       const data = await this.applyLoopVideo(query)
-      if (data.isPassed) {
-        clearInterval(timer)
-        this.updateChapterStatus(chapter_id)
-        if (this.currentNum < this.max) {
-          this.currentNum += 1
-          console.log(`************isPassed:${data.isPassed}--${chapter_name}已完成*************`)
-          console.log(`********************当前任务${this.currentNum}/${this.max},10s之后再执行**************`)
-          await sleep(10)
-          this.start()
-        } else {
-          console.log('**************所有任务已完成**************')
-          this.currentNum = 0
-        }
+      if (!data.isPassed) {
+        return
       }
-    }, 10000)
+      clearInterval(timer)
+      this.updateChapterStatus(chapter_id)
+      if (this.currentNum < this.max) {
+        this.currentNum += 1
+        const { user_name = '', course_name = '' } = this.getCourseUserName(user_id, course_id)
+        console.log(`************任务：${user_name}--${course_name}--${chapter_name}已完成*************`)
+        console.log(`********************当前任务${this.currentNum}/${this.max},10s之后再执行**************`)
+        await sleep(10)
+        this.start()
+      } else {
+        console.log('**************所有任务已完成**************')
+        this.currentNum = 0
+      }
+    }, 10000) */
   }
 
   start(user_id) {
@@ -190,7 +226,7 @@ class RequestMethod {
         const { dtoken, status, duration } = JSON.parse(data)
         if (status === 'success') {
           const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime: 0, objectId, otherInfo, course_id, clazzId, jobid, userid, isdrag: 3, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
-          this.playVideo({ ...params, enc: this.getEnc(params) }, chapter_name).then(res => console.log(res))
+          this.playVideo({ ...params, enc: this.getEnc(params) }, chapter_name, user_id).then(res => console.log(res))
         }
       }
     })
