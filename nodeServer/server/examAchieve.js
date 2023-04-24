@@ -23,7 +23,7 @@ class ExamAchieve {
   analysisMultiple(type, answer, question_answer) {
     // 解析多选题答案
     try {
-      if (type === 0) return [answer]
+      // if (type === 0) return [answer]
       const fn = (answerSeq, question_answer) => {
         let _answerCharList = question_answer.split('\n')[1].split(/[a-zA-Z]\s+?\.\s+?/).filter(char => char !== '' && char)
         const result = []
@@ -120,7 +120,7 @@ class ExamAchieve {
       connect.query(sql, [questionId], (err, result=[], a)=> {
         if (!err && result.length) {
           const [{ answer_content }] = result;
-          if (answer_content !== null) {
+          if (answer_content !== '' && answer_content !== null) {
             return resolve([answer_content])
           }
         }
@@ -136,22 +136,26 @@ class ExamAchieve {
 
   async getAnswer(questionName, questionId) {
     questionName = questionName.replace(/[\[【（\(].*?[】\]）\)]/g, '')
-    let answer = '';
+    let answer = [];
     let isDataBaseQuery = true;
     if (questionId) {
       answer = await this.getDataBaseAnswer(questionId)
+      if (answer) {
+        answer = JSON.parse(answer)
+      }
     }
-    if (!answer) {
-      answer = await this.answerCx(questionName)
-      isDataBaseQuery = false
-    }
-    if (!answer) {
+    if (!answer || !answer.length) {
       answer = await this.answerXxy(questionName)
       isDataBaseQuery = false
     }
-    if (answer && !isDataBaseQuery) {
-      this.setQuestionAnswer(answer, questionId);
+    if (!answer || !answer.length) {
+      answer = await this.answerCx(questionName)
+      isDataBaseQuery = false
     }
+    if (answer && !isDataBaseQuery) {
+      this.setQuestionAnswer(JSON.stringify(answer), questionId);
+    }
+    console.log('questionName:', questionName, '==>', answer)
     return answer
   }
 
@@ -159,6 +163,7 @@ class ExamAchieve {
     if (!questionId) return;
     const sql = `update questionTable set answer_content=? where question_id=?`
     connect.query(sql, [answer.toString(), questionId], (err) => {
+      console.log(err, sql)
       /* if (!err) {
         console.log(result)
         if (result.length) {
@@ -181,7 +186,7 @@ class ExamAchieve {
 
   getQuestionData(questionIds) {
     return new Promise(resolve=> {
-      const sql = `select name, answer_list, question_type from questionTable q where q.question_id in ?`;
+      const sql = `select * from questionTable q where q.question_id in ?`;
       connect.query(sql, [[questionIds]], (err, result)=> {
         if (!err) {
           if (result.length) {
@@ -195,12 +200,12 @@ class ExamAchieve {
 
   async getQuestionListInfo(chapterId) {
     return new Promise(resolve=> {
-      const sql = `select form_data, question_id from chapterTable t where t.chapter_id=? and t.score is null and t.question_id is not null;`;
+      const sql = `select form_data, question_id, cpi from chapterTable t where t.chapter_id=? and t.score is null and t.question_id is not null;`;
       connect.query(sql, [chapterId], (err, result)=> {
         if (!err) {
           if (result.length) {
-            const [{ form_data: formData, question_id: questionId }] = result;
-            return resolve({ formData, questionId })
+            const [{ form_data: formData, question_id: questionId, cpi }] = result;
+            return resolve({ formData, questionId, cpi })
           }
         }
         return resolve(false)
@@ -208,7 +213,18 @@ class ExamAchieve {
     })
   }
 
-  submitQuestion() {
+  submitQuestion(formData, chapterId, cpi) {
+    const defaultBody = { pyFlag: '', api: 1, knowledgeid: 'chapterId', enc: '', cpi: ''  }
+    formData = {"classId":"74635917","courseid":"233568281","token":"bac40ac8da6603c50239ad22f46d69b8","totalQuestionNum":"fa7b891349fa608eae0b751926d519c9","workAnswerId":"51714219","answerId":"51714219","fullScore":"100.0","oldSchoolId":"","oldWorkId":"647aaa40b6ac4a358794c7d6bc8602b0","jobid":"work-647aaa40b6ac4a358794c7d6bc8602b0","workRelationId":"26219074","enc_work":"bac40ac8da6603c50239ad22f46d69b8","userId":"150772623","workTimesEnc":"","randomOptions":"false"}
+    const queryParams = {
+      _classId: '', courseid: '', token: '', totalQuestionNum: '',
+      workid: '', cpi, jobid: '', knowledgeid: chapterId, ua: 'pc',
+      formType: 'post', saveStatus: 1, pos: '', rd: '', value: '',
+      wid: '', _edt: new Date().getTime(), version: 1
+    }
+
+
+
     const options = {
       'method': 'POST',
       'url': 'https://mooc1.chaoxing.com/work/addStudentWorkNewWeb?_classId=74635917&courseid=233568281&token=6f9febb36d86389d7258d3d412628d97&totalQuestionNum=e0fd4ae12458a2365c8d760026d000cf&workid=26091382&cpi=151953989&jobid=work-6c55d5d040ef41ac8e553a9af0a0bebc&knowledgeid=705028180&ua=pc&formType=post&saveStatus=1&pos=d3be69813c286069e145035ee3fc&rd=0.35655039593748183&value=(807|1298)&wid=26091382&_edt=1681396148579250&version=1](https://mooc1.chaoxing.com/work/addStudentWorkNewWeb?_classId=74635917&courseid=233568281&token=6f9febb36d86389d7258d3d412628d97&totalQuestionNum=e0fd4ae12458a2365c8d760026d000cf&workid=26091382&cpi=151953989&jobid=work-6c55d5d040ef41ac8e553a9af0a0bebc&knowledgeid=705028180&ua=pc&formType=post&saveStatus=1&pos=d3be69813c286069e145035ee3fc&rd=0.35655039593748183&value=(807%7C1298)&wid=26091382&_edt=1681396148579250&version=1',
@@ -239,29 +255,59 @@ class ExamAchieve {
 
   }
 
+  updateAnswerMap(answer, answerList, answerMap, question_type, question_id) {
+    answerList = JSON.parse(answerList)
+    const multipleChoice = [];
+    const judgmentQuestion = { 'true': '正确', 'false': '错误' };
+    for (const i in answerList) {
+      let { answerName, answerId, answerVal } = answerList[i];
+      if (question_type === '3') { // 判断题
+        answerName = answerVal;
+      }
+      answerName = judgmentQuestion[answerName.replace(' ', '')] || answerName;
+      if (answer.includes(answerName)) {
+        if (question_type === '1') {
+          if (!answerMap[answerId]) {
+            answerMap[answerId] = []
+          }
+          multipleChoice.push(answerVal)
+          answerMap[answerId].push(answerVal)
+          continue
+        }
+        answerMap[answerId] = answerVal;
+      }
+    }
+    if (question_type === '1') { // 多选题
+      answerMap[question_id] = multipleChoice.join('')
+    }
+  }
+
   async startAnswering(chapterId) {
     const data = await this.getQuestionListInfo(chapterId);
     if (data) {
-      const { formData, questionId } = data;
-      const answerList = [];
+      const { formData, questionId, cpi } = data;
+      const answerMap = {};
       const ids = questionId.split(',');
       const allQuestion = await this.getQuestionData(ids);
       if (allQuestion && allQuestion.length) {
         for (const i in allQuestion) {
-          const { name, answer_list, question_type } = allQuestion[i];
-          const answer = await this.getAnswer(name)
-          console.log('*****答案：', name, ':', answer)
+          const { name, answer_list, question_type, question_id } = allQuestion[i];
+          const answer = await this.getAnswer(name, question_id)
+          answerMap[question_id] = question_type;
+          this.updateAnswerMap(answer, answer_list, answerMap, question_type, question_id);
           await sleep(1)
         }
+        console.log(answerMap)
+        // this.submitQuestion(formData, chapterId, cpi);
       }
     }
   }
 }
 const examAchieve = new ExamAchieve()
-/* examAchieve.getAnswer('“咔”和“喃”是一种歌中有舞、舞中有歌的表演艺术').then(data => {
+/* examAchieve.getAnswer('下埶秇项中,属于埥里萨埤很埸打埮鱼埬原因埬有').then(data => {
   console.log(data)
 }) */
 
-examAchieve.startAnswering(705028206);
+examAchieve.startAnswering(705028197);
 
 module.exports = ExamAchieve
