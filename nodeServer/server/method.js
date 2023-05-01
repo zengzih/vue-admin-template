@@ -3,7 +3,6 @@ const encrypt = require('../../src/utils/encryptByAES.js')
 const { httpRequest } = require('../../src/utils/httpRequest.js')
 const { sleep } = require('../../src/utils/index.js')
 const md5 = require('js-md5')
-const user = require('@/store/modules/user')
 // const { playChapterVideo } = require('@/apis')
 // const { getAnswerStatus } = require('@/apis')
 // const wsServer = require('./websocketServer.js')
@@ -161,7 +160,7 @@ class RequestMethod {
       if (this.currentNum === this.max) {
         return console.log(`**************${user_name}今日所有任务已完成**************`)
       }
-      console.log(`************任务：${user_name}--${course_name}--${chapter_name}已完成*************`)
+      console.log(`************任务完成：${user_name}--${course_name}--${chapter_name}已完成*************`)
       return console.log(`********************当前任务${this.currentNum}/${this.max},10s之后再执行**************`)
     }
     console.log(`**************任务：${user_name}--${course_name}-${chapter_name}***${playingTime}/${duration}**********`)
@@ -169,7 +168,7 @@ class RequestMethod {
 
   async recursion(query, chapter_name, user_id) {
     const { chapter_id } = query;
-    const { isPassed } = await this.applyLoopVideo(query)
+    const { isPassed } = await this.applyLoopVideo(query).catch(err=> err)
     await this.printPlayProgress(query, chapter_name, user_id, isPassed);
     this.currentNum += 1
     if (isPassed) {
@@ -178,7 +177,7 @@ class RequestMethod {
       this.start(user_id)
     } else {
       await sleep(5)
-      await this.recursion(this.updateRequestPar(query))
+      await this.recursion(this.updateRequestPar(query), chapter_name, user_id)
     }
   }
 
@@ -220,23 +219,39 @@ class RequestMethod {
   start(user_id) {
     connect.query(`select * from chapterTable where is_passed=0 and user_id=? limit 1`, [user_id], async(err, result) => {
       if (!err && result && result.length) {
-        const [{ cpi, attachments = '{}', course_id, user_id: userid, clazzid: clazzId, chapter_id, chapter_name }] = result
-        const { attachments: [{ objectId, otherInfo, jobid }] } = JSON.parse(attachments)
+        let [{ cpi, attachments = '{}', course_id, user_id: userid, clazzid: clazzId, chapter_id, chapter_name }] = result
+        attachments = JSON.parse(attachments)
+        if (/创业活动研究/.test(chapter_name)) {
+          debugger;
+        }
+        if (!attachments.attachments.length) {
+          console.log(`*********${chapter_id}-${chapter_name}不是视频课程，已跳过*********`)
+          this.updateChapterStatus(chapter_id)
+          await sleep(5)
+          return this.start(user_id)
+        }
+        const { attachments: [{ objectId, otherInfo, jobid }] } = attachments;
+        if (!objectId) {
+          // 此处是章节检测，先跳过
+          console.log(`-------------碰到章节测试，跳过:${chapter_name}`)
+          this.updateChapterStatus(chapter_id)
+          return this.start(user_id)
+        }
         const data = await this.getAnswerStatus({ cpi, objectId, k: 12007, flag: 'normal', _dc: new Date().getTime() })
         const { dtoken, status, duration } = JSON.parse(data)
         if (status === 'success') {
           const params = { cpi, dtoken, clipTime: `0_${duration}`, duration, chapter_id, playingTime: 0, objectId, otherInfo, course_id, clazzId, jobid, userid, isdrag: 3, view: 'pc', dtype: 'Video', _t: new Date().getTime() }
-          this.playVideo({ ...params, enc: this.getEnc(params) }, chapter_name, user_id).then(res => console.log(res))
+          this.playVideo({ ...params, enc: this.getEnc(params) }, chapter_name, user_id).then(res => console.log('*******playVideo:', res))
         }
       }
     })
   }
 }
-const requestMethod = new RequestMethod()
+// const requestMethod = new RequestMethod()
 // requestMethod.login({ uname: 19392948031, password: 'lj200204171693' })
 
 // requestMethod.getIncompleteChapter()
 
 
-module.exports = requestMethod
+module.exports = RequestMethod
 

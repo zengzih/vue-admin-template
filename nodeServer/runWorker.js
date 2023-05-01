@@ -1,10 +1,12 @@
 const { Worker } = require('worker_threads')
 const { sleep } = require('../src/utils/index')
+//
 
 const runWorker = (workerData) => {
   return new Promise((resolve, reject) => {
     // 引入 workerExample.js `工作线程`脚本文件
     const worker = new Worker('./initCourse/main.js', { workerData });
+    worker.postMessage( { workerData })
     worker.on('message', resolve);
     worker.on('error', reject);
     worker.on('exit', (code) => {
@@ -32,10 +34,10 @@ const main = () => {
       userInfo: { uname: 13159229610, password: '123456qwe' },
       courseInfo: ['论文写作初阶', '教师口语艺术', '创新创业', '工程训练']
     },
-    {
+    /* {
       userInfo: { uname: 17354485365, password: 'lky105753' },
       courseInfo: ['高等数学A（下）余老师2022-2023-2']
-    },
+    }, */
     {
       userInfo: { uname: 16655223477, password: '200205057553zan' },
       courseInfo: ['朗读艺术入门', '服装流行分析与预测', '创新创业', '工程训练']

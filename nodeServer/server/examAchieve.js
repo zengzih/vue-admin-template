@@ -2,186 +2,19 @@ const { httpRequest } = require('../../src/utils/httpRequest.js')
 const connect = require('../connect/index')
 const { sleep } = require('../../src/utils/index.js')
 const request = require('request')
+const { compareAnswer } = require('../examServer/utils')
+const answerUtil = require('../examServer/answer')
+const { logger } = require('../utils')
+
 
 class ExamAchieve {
   constructor() {
-    this.course_id = 233568387
-    this.question_type = {
-      '单选题': 0,
-      '多选题': 1
-    }
-    this.answerSequenceObj = {
-      'A': 0,
-      'B': 1,
-      'C': 2,
-      'D': 3,
-      'E': 4,
-      'F': 5
-    }
   }
 
-  analysisMultiple(type, answer, question_answer) {
-    // 解析多选题答案
-    try {
-      // if (type === 0) return [answer]
-      const fn = (answerSeq, question_answer) => {
-        let _answerCharList = question_answer.split('\n')[1].split(/[a-zA-Z]\s+?\.\s+?/).filter(char => char !== '' && char)
-        const result = []
-        answerSeq = answerSeq.split('');
-        ['A', 'B', 'C', 'D', 'E', 'F'].forEach((word, index) => {
-          if (answerSeq.includes(word)) {
-            result.push(_answerCharList[index])
-          }
-        })
-        return result
-      }
-      return fn(answer, question_answer)
-    } catch (e) {
-      console.log(e)
-    }
-    return answer
-  }
-
-  answerXxy(question) {
-    return new Promise((resolve) => {
-      const options = {
-        'method': 'POST',
-        'url': 'https://xxy.51xuexiaoyi.com/el/wx/sou/search',
-        'headers': {
-          'Host': 'xxy.51xuexiaoyi.com',
-          'wx-open-id': 'oKtmq5V1_mdhSNLYK2r87zDn8Bvg',
-          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF XWEB/6763',
-          'content-type': 'application/json',
-          'accept': 'application/json',
-          'x-use-ppe': '',
-          'xweb_xhr': '1',
-          'referer': 'https://servicewechat.com/wx7436885f6e1ba040/6/page-frame.html',
-          'x-tt-env': '',
-          'sec-fetch-site': 'cross-site',
-          'sec-fetch-mode': 'cors',
-          'sec-fetch-dest': 'empty',
-          'accept-language': 'zh-CN,zh'
-        },
-        body: JSON.stringify({
-          'query': question,
-          'channel': 1
-        })
-      }
-      request(options, (error, response) => {
-        if (error) throw new Error(error)
-        const { data: { result = {} } } = JSON.parse(response.body)
-        if (result) {
-          const [fistAnswer] = result.items
-          if (fistAnswer) {
-            const { question_answer: { question_type, answer_plain_text, question_plain_text } } = fistAnswer
-            const answer = this.analysisMultiple(this.question_type[question_type], answer_plain_text, question_plain_text)
-            return resolve(answer)
-          }
-        }
-        resolve(false)
-      })
-    })
-  }
-
-  answerCx(question) {
-    return new Promise((resolve) => {
-      request({
-        method: 'POST',
-        url: 'https://cx.icodef.com/wyn-nb?v=4',
-        headers: {
-          'authority': 'cx.icodef.com',
-          'accept': '*/*',
-          'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7',
-          'authorization': 'LnQqHzXAtbXVqBpf',
-          'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-          'sec-fetch-dest': 'empty',
-          'sec-fetch-mode': 'cors',
-          'sec-fetch-site': 'none',
-          'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
-        },
-        body: `question=${encodeURIComponent(question)}`
-      }, (err, res) => {
-        if (!err) {
-          const { code, data } = JSON.parse(res.body)
-          if (code === 1) {
-            const answer = data.split('#');
-            if (answer.length) return resolve(answer)
-          }
-        }
-        resolve(false)
-      })
-    })
-  }
-
-  getDataBaseAnswer(questionId) {
-    // 先从数据库中查答案
-    return new Promise(resolve=> {
-      const sql = `select answer_content from questionTable where question_id=?`;
-      connect.query(sql, [questionId], (err, result=[], a)=> {
-        if (!err && result.length) {
-          const [{ answer_content }] = result;
-          if (answer_content !== '' && answer_content !== null) {
-            return resolve([answer_content])
-          }
-        }
-        resolve(false)
-      })
-    })
-  }
-
-  pureFunc(func, params) {
-
-  }
-
-
-  async getAnswer(questionName, questionId) {
-    questionName = questionName.replace(/[\[【（\(].*?[】\]）\)]/g, '')
-    let answer = [];
-    let isDataBaseQuery = true;
-    if (questionId) {
-      answer = await this.getDataBaseAnswer(questionId)
-      if (answer) {
-        answer = JSON.parse(answer)
-      }
-    }
-    if (!answer || !answer.length) {
-      answer = await this.answerXxy(questionName)
-      isDataBaseQuery = false
-    }
-    if (!answer || !answer.length) {
-      answer = await this.answerCx(questionName)
-      isDataBaseQuery = false
-    }
-    if (answer && !isDataBaseQuery) {
-      this.setQuestionAnswer(JSON.stringify(answer), questionId);
-    }
-    console.log('questionName:', questionName, '==>', answer)
-    return answer
-  }
-
-  setQuestionAnswer(answer, questionId) {
+  setQuestionAnswer(answer_text, answer_value, questionId) {
     if (!questionId) return;
-    const sql = `update questionTable set answer_content=? where question_id=?`
-    connect.query(sql, [answer.toString(), questionId], (err) => {
-      console.log(err, sql)
-      /* if (!err) {
-        console.log(result)
-        if (result.length) {
-          const [{ question_id, form_data }] = result
-          const sql = `select * from questionTable where question_id in ?`
-          connect.query(sql, [[question_id.split(',')]], async(err, result) => {
-            if (!err) {
-              const questionNames = result.map(({ name }) => (name))
-              for (const key in questionNames) {
-                console.log('questionNames[key]:', questionNames[key])
-                const res = await this.getAnswer(questionNames[key])
-                console.log(res)
-              }
-            }
-          })
-        }
-      } */
-    })
+    const sql = `update questionTable set answer_text=?, answer_value=? where question_id=?`
+    connect.query(sql, [answer_text, answer_value, questionId], (err) => err && console.log(err, sql))
   }
 
   getQuestionData(questionIds) {
@@ -255,32 +88,35 @@ class ExamAchieve {
 
   }
 
-  updateAnswerMap(answer, answerList, answerMap, question_type, question_id) {
+  getCorrectAnswer(answer, answerList, answerMap, question_type, qs_id, qs_name) {
+    // 获取正确答案 对比题库答案和考试答案，排除干扰找到正确的答案
     answerList = JSON.parse(answerList)
-    const multipleChoice = [];
+    const answerInfo = {
+      id: '', answer_text: [], answer_value: [], qs_name, qs_id
+    };
     const judgmentQuestion = { 'true': '正确', 'false': '错误' };
-    for (const i in answerList) {
-      let { answerName, answerId, answerVal } = answerList[i];
-      if (question_type === '3') { // 判断题
-        answerName = answerVal;
-      }
-      answerName = judgmentQuestion[answerName.replace(' ', '')] || answerName;
-      if (answer.includes(answerName)) {
-        if (question_type === '1') {
-          if (!answerMap[answerId]) {
-            answerMap[answerId] = []
-          }
-          multipleChoice.push(answerVal)
-          answerMap[answerId].push(answerVal)
-          continue
+    for (const n in answer) {
+      for (const i in answerList) {
+        let { answerName, answerId, answerVal } = answerList[i];
+        if (question_type === '3') { // 判断题
+          answerName = answerVal;
         }
-        answerMap[answerId] = answerVal;
+        answerName = judgmentQuestion[answerName.replace(' ', '')] || answerName;
+        if (compareAnswer(answer[n], answerName)) {
+          answerInfo.answer_text.push(answerName)
+          answerInfo.answer_value.push(answerVal)
+          answerInfo.ids = answerId
+          break
+        }
       }
     }
-    if (question_type === '1') { // 多选题
-      answerMap[question_id] = multipleChoice.join('')
-    }
+    return answerInfo;
   }
+
+  updateQusAnswer(answer) {
+    // 更新问题答案
+  }
+  // compareAnswer
 
   async startAnswering(chapterId) {
     const data = await this.getQuestionListInfo(chapterId);
@@ -292,22 +128,34 @@ class ExamAchieve {
       if (allQuestion && allQuestion.length) {
         for (const i in allQuestion) {
           const { name, answer_list, question_type, question_id } = allQuestion[i];
-          const answer = await this.getAnswer(name, question_id)
-          answerMap[question_id] = question_type;
-          this.updateAnswerMap(answer, answer_list, answerMap, question_type, question_id);
+          const qs_name = name.replace(/ /g, ' ')
+          let answer = await answerUtil.getAnswer(qs_name, question_id, question_type)
+          const { answer_text, answer_value } = this.getCorrectAnswer(answer, answer_list, answerMap, question_type, question_id, qs_name);
+          if (!answer_value.length) {
+            logger.debug(`未找到答案chapterId:=> ${chapterId}--问题：${qs_name}-${question_id},参考答案为：${answer}`)
+            continue;
+          }
+          console.log(`******问题:${qs_name}答案为：${answer_text}-${answer_value}`)
+          this.setQuestionAnswer(JSON.stringify(answer_text), JSON.stringify(answer_value), question_id);
           await sleep(1)
         }
-        console.log(answerMap)
+        // console.log(answerMap)
         // this.submitQuestion(formData, chapterId, cpi);
       }
     }
   }
 }
 const examAchieve = new ExamAchieve()
-/* examAchieve.getAnswer('下埶秇项中,属于埥里萨埤很埸打埮鱼埬原因埬有').then(data => {
-  console.log(data)
+/*  examAchieve.answerXxy('Paraphrase This organization may succeed marvelously at what it wants to do, but what it wants to do may not be all that important. Which of the following best explains the meaning of the original sentence?', 0).then(data => {
+  console.log('answerXxy：', data)
+})
+
+examAchieve.answerCx('Paraphrase This organization may succeed marvelously at what it wants to do, but what it wants to do may not be all that important. Which of the following best explains the meaning of the original sentence?').then(res=> {
+  console.log('answerCx:', res)
 }) */
 
-examAchieve.startAnswering(705028197);
+// examAchieve.startAnswering(705056602);
 
 module.exports = ExamAchieve
+
+

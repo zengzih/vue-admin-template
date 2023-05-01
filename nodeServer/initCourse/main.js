@@ -1,10 +1,10 @@
 const request = require('request')
 const cheerio = require('cheerio')
-const connection = require('./sql/index')
-const { workerData, parentPort } = require('worker_threads')
+const { workerData } = require('worker_threads')
 const { queryParams, getQueryParams, sleep } = require('./utils')
 const { httpRequest } = require('../../src/utils/httpRequest')
 const analysisBase64 = require('../../src/utils/decryptFont/index')
+const connection = require('../../nodeServer/initCourse/sql/index')
 
 const {
   insertCourseTable,
@@ -17,7 +17,8 @@ const {
   updateChapterScore
 } = require('./sql/insert')
 // const { base64StrToFont } = require('./utils')
-const requestMethod = require('../server/method')
+const RequestMethod = require('../server/method')
+const requestMethod = new RequestMethod();
 
 const getStudyInfo = (query) => {
   const url = queryParams('https://mooc1.chaoxing.com/mycourse/studentstudyAjax', query)
@@ -136,15 +137,20 @@ const questionTypeDict = {
   3: 'radio' // 判断
 }
 
-const analysisAnswerHtml = ($, chapterId, base64Str) => {
-  const currying = analysisBase64(base64Str)
+const analysisAnswerHtml = ($, chapterId, matchBase) => {
+  let base64Str = ''
+  let currying = ''
+  if (matchBase && matchBase.length) {
+    currying = analysisBase64(base64Str)
+  }
   const TiMu = $('#ZyBottom .TiMu')
   let num = 0
   const result = []
   const questionIds = []
   while (num < TiMu.length) {
     const questionItem = TiMu[num]
-    const questionName = currying($(questionItem).find('div.fontLabel').text())
+    const q_name = $(questionItem).find('div.fontLabel').text()
+    const questionName = currying ? currying(q_name) : q_name
     // const questionNameChar = currying(questionName)
     // const decipherStr = getDecipherChar(questionNameChar, decipherObj)
     const questionTypeId = $(questionItem).find('input[type=hidden]').attr('id')
@@ -153,7 +159,8 @@ const analysisAnswerHtml = ($, chapterId, base64Str) => {
     const answerList = []
     for (let i = 0; i < questionList.length; i++) {
       const questionItem = questionList[i]
-      let answerName = currying($(questionItem).find('a.fl.after').text())
+      const a_name = $(questionItem).find('a.fl.after').text()
+      let answerName = currying ? currying(a_name) : a_name
       // answerName = getDecipherChar(answerName.split(''), decipherObj)
       const answerId = $(questionItem).find(`input[type=${questionTypeDict[questionTypeVal]}]`).attr('name')
       const answerVal = $(questionItem).find(`input[type=${questionTypeDict[questionTypeVal]}]`).attr('value')
@@ -227,29 +234,16 @@ const getWordAnswerInfo = async(clazzId, courseid, knowledgeid, cpi, enc, utenc,
     // 保存考试提交时需要的参数
     updateChapterQuestionForm(JSON.stringify(questionFormData), knowledgeid)
     const matchBase = res.match(/base64,(.*?)'\)/)
-    if (matchBase && matchBase.length) {
-      analysisAnswerHtml($, knowledgeid, matchBase[1])
-      // const filePath = await base64StrToFont(base64Font)
-
-      /* return request(`http://localhost:8899/decipher_font?font_path=${filePath}`, (err, result) => {
-        if (!err) {
-          try {
-            const body = JSON.parse(result.body)
-            insertDecryptChar(body, knowledgeid)
-            analysisAnswerHtml($, body, knowledgeid)
-          } catch (e) {
-            console.error(e)
-          }
-        }
-      }) */
-    } else {
-      // 尝试获取章节测试分数
-      const ZyTop = $('.ZyTop')
-      if (ZyTop) {
-        const score = ZyTop.find('span>span').text()
-        if (score) {
-          updateChapterScore(score, knowledgeid)
-        }
+    const examinationStatus = /待完成/.test($('.ZyTop span').text());
+    if (examinationStatus) {
+      return analysisAnswerHtml($, knowledgeid, matchBase)
+    }
+    // 尝试获取章节测试分数
+    const ZyTop = $('.ZyTop')
+    if (ZyTop) {
+      const score = ZyTop.find('span>span').text()
+      if (score) {
+        updateChapterScore(score, knowledgeid)
       }
     }
   }
@@ -295,6 +289,9 @@ const getStudentCourse = (link) => {
     for (let i = 0; i < chapterUnitList.length; i++) {
       const unit = chapterUnitList[i]
       const catalogTitle = $(unit).find('.catalog_title span[title]').text().trim()
+      // if (i !== 0) {
+      //   continue
+      // }
       const chapterItems = $(unit).find('.chapter_item')
       for (let n = 0; n < chapterItems.length; n++) {
         const chapterItem = chapterItems[n]
@@ -304,7 +301,7 @@ const getStudentCourse = (link) => {
           chapterId = chapterId.replace(/cur/i, '')
           // courseId, clazzid, chapterId, cpi
           const { examination, video } = await studentStudyAjax(courseid, clazzid, chapterId, cpi)
-          // 获取视频相关信息
+          // 获取视频相关信息  video为'' 则跳过
           const { args: cardsArgs } = await getKnowledgeCards(clazzid, courseid, chapterId, cpi, video)
           const userId = cardsArgs?.defaults?.userid
           if (!chapterMap[catalogTitle]) {
@@ -312,18 +309,22 @@ const getStudentCourse = (link) => {
           }
           if (userId) {
             chapterMap[catalogTitle].push({ chapterId, chapterName, ...cardsArgs })
+            // video === ''：当前是章节的情况
+            let videoFinish = video === '' ? 1 : geAttachmentsIsPassed(cardsArgs)
             insertChapterTable([[Number(courseid), Number(chapterId), n,
               chapterName, catalogTitle, i, Number(cpi),
               Number(clazzid), JSON.stringify(cardsArgs),
-              Number(userId), geAttachmentsIsPassed(cardsArgs)]])
+              Number(userId), videoFinish]])
             // chapterSqlValues.push()
             // userSqlValues.push([Number(cardsArgs?.defaults?.userid), Number(chapterId), chapterName, geAttachmentsIsPassed(cardsArgs)]);
           }
-          await getQuestionBankInformation(Number(clazzid), Number(courseid), Number(chapterId), Number(cpi), examination)
+          if (examination !== '') {
+            await getQuestionBankInformation(Number(clazzid), Number(courseid), Number(chapterId), Number(cpi), examination)
+          }
         }
-        await sleep(30)
+        // await sleep(30)
       }
-      await sleep(30)
+      // await sleep(30)
     }
     // insertChapterTable(chapterSqlValues)
     // insetUser(userSqlValues);
@@ -375,7 +376,7 @@ const getCourseAll = ({uname, password}, includeCourse=[]) => {
     await insertUserTable([[uname, password, userName, userId]])
     let num = 0
     while (num < list.length) {
-      console.log(`*************************${num}/${list.length}*************************`)
+      console.log(`*************************${num}/${list.length}总单元*************************`)
       const item = list[num]
       const courseName = $(item).find('.course-name').text()
       console.log(uname, courseName)
@@ -397,7 +398,7 @@ const getCourseAll = ({uname, password}, includeCourse=[]) => {
 }
 
 
-const start = ({ userInfo={}, courseInfo=[] }) => {
+const start = ({ userInfo={}, courseInfo=[]}) => {
   requestMethod.login(userInfo).then(res => {
     const data = JSON.parse(res)
     if (data.status) {
@@ -424,8 +425,15 @@ const start = (data)=> {
   console.log(data)
   console.log(workerData)
 } */
+/* port1.on('message', (data)=> {
+  console.log(data)
+}) */
 start(workerData)
 
+// getStudentCourse()
+
+// https://mooc1.chaoxing.com/mycourse/studentstudy?chapterId=705056601&courseId=233568301&clazzid=74635945&cpi=151953962&enc=752cce22cc766015c24a8be6aae0d488&mooc2=1&openc=f16f78af4a337bf54a7cedcd81b17958
+// studentStudyAjax(233568301, 74635945, 705056601, 151953962)
 
 
 module.exports = {

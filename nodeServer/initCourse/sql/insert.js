@@ -5,7 +5,8 @@ const insertCourseTable = (values)=> {
 };
 
 const insertChapterTable = (values)=> {
-    const sql = 'insert into chapterTable(course_id, chapter_id, chapter_index, chapter_name, catalog_name, catalog_index, cpi, clazzid, attachments, user_id, is_passed) values ? on duplicate key update is_passed = values(is_passed)';
+    const sql = `insert into chapterTable(course_id, chapter_id, chapter_index, chapter_name, catalog_name, catalog_index, cpi, clazzid, attachments, user_id, is_passed) values ?
+            on duplicate key update is_passed = values(is_passed), attachments=values(attachments)`;
     connection.query(sql, [values], (err)=> {
         console.log(err)
     })
@@ -13,7 +14,7 @@ const insertChapterTable = (values)=> {
 
 const insetUser = (values)=> {
     const sql = 'insert into user(user_id, chapter_id, chapter_name, is_passed) values ? on duplicate key update user_id, chapter_id = values(user_id, chapter_id)';
-    connection.query(sql, [values], (err)=> { console.log(err) })
+    connection.query(sql, [values], (err)=> { console.log(err, sql) })
 }
 
 const insertDecryptCharTable = (values)=> {
@@ -31,7 +32,7 @@ const insertQuestionTable = (values)=> {
 }
 
 const updateChapterQuestionId = (values, chapterId)=> {
-    const sql = `update chapterTable set question_id=? where chapter_id=?`;
+    const sql = `update set chapterTable set question_id=? where chapter_id=?`;
     connection.query(sql, [values, chapterId], (err)=> {
         console.log('******sql:', err, sql)
     });

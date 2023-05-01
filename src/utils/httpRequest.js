@@ -75,7 +75,6 @@ const interfaceMap = {
 
 const defaultHeaders = {
   'Content-Type': 'application/json',
-  'Cookie': '',
   'Referer': 'https://mooc1.chaoxing.com/ananas/modules/video/index.html?v=2023-0331-1824',
   // 'Host': 'mooc1.chaoxing.com',
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
@@ -92,12 +91,11 @@ const replaceUrlBooth = (url, params) => {
   return url
 }
 
-const httpRequest = (url, params, method = 'get', headers) => {
+const httpRequest = async (url, params, method = 'get', headers) => {
   method = method.toLowerCase()
   url = replaceUrlBooth(getHost(interfaceMap, url), params)
   headers = headers || defaultHeaders
   const URL = method === 'get' ? queryParams(params, url) : url
-  // console.log('url:', URL)
   return new Promise((resolve, reject) => {
     request({
       url: URL,
