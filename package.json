@@ -19,6 +19,7 @@
     "cn-chars": "^0.1.1",
     "core-js": "3.6.5",
     "crypto-js": "^4.1.1",
+    "csvtojson": "^2.0.10",
     "element-ui": "2.13.2",
     "eslint-friendly-formatter": "^4.0.1",
     "js-cookie": "2.2.0",

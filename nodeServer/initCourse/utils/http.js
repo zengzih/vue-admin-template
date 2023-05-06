@@ -29,7 +29,7 @@ const getHost = (urlMap, interfaceName)=> {
 }
 
 const getQueryParams = (url)=> {
-    console.log(url)
+    console.log('getQueryParams：', url)
     const params = url.split('?')[1];
     const dict = {};
     if (params.length) {
@@ -84,7 +84,6 @@ const httpRequest = (req_url, params, method='get')=> {
     method = method.toLowerCase();
     const { url, host } = getHost(interfaceMap, req_url)
     const URL = method === 'get' ? queryParams(params, url) : url;
-    console.log(URL)
     return new Promise((resolve, reject) => {
         request({
             url: URL,

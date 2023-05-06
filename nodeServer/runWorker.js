@@ -14,7 +14,7 @@ const runWorker = (workerData) => {
   })
 }
 
-const main = () => {
+const main = async () => {
   const accountData = [
     {
       userInfo: { uname: 15659955392, password: '88888888xkh' },
@@ -31,10 +31,6 @@ const main = () => {
     {
       userInfo: { uname: 13159229610, password: '123456qwe' },
       courseInfo: ['论文写作初阶', '教师口语艺术', '创新创业', '工程训练']
-    },
-    {
-      userInfo: { uname: 17354485365, password: 'lky105753' },
-      courseInfo: ['高等数学A（下）余老师2022-2023-2']
     },
     {
       userInfo: { uname: 16655223477, password: '200205057553zan' },
@@ -55,12 +51,19 @@ const main = () => {
     {
       userInfo: { uname: 17355026051, password: '129061@xym' },
       courseInfo: ['宪法与法律', '创新创业', '毒品危害与防范']
+    },
+    {
+      userInfo: { uname: 15328007932, password: 'q1020292807' },
+      courseInfo: ['欧洲文明的现代历程', '创新创业', '中国民间艺术的奇妙之旅', '工程训练']
+    },
+    {
+      userInfo: { uname: 13966473620, password: 'lyj111111' },
+      courseInfo: ['创新创业', '舌尖上的植物学', 'Flash动画技术入门', '工程训练']
     }
   ]
   for (const key in accountData) {
     runWorker(accountData[key])
-    sleep(2)
-    // console.log(result);
+    // await sleep(3)
   }
 }
 main();

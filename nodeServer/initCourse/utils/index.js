@@ -48,7 +48,6 @@ const getHost = (urlMap, interfaceName)=> {
 }
 
 const getQueryParams = (url)=> {
-	console.log(url)
 	const params = url.split('?')[1];
 	const dict = {};
 	if (params.length) {
