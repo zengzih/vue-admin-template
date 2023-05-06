@@ -271,7 +271,7 @@ const getQuestionBankInformation = async(clazzid, courseid, chapterId, cpi, num,
 const hasChapter = (chapterId, userId)=> {
   // 当前用户对应的章节是否存在，如果存在则开始刷视频
   return new Promise(resolve => {
-    connection.query('select * from chapterTable where chapter_id=? and user_id=? and is_passed=0', [chapterId, userId], (err, result)=> {
+    connection.query('select * from chaptertable where chapter_id=? and user_id=? and is_passed=0', [chapterId, userId], (err, result)=> {
       if (!err && result.length) {
         return resolve(true);
       }

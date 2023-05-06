@@ -1,11 +1,11 @@
-const connection = require("../../connect/index");
+const connection = require("./index");
 const insertCourseTable = (values)=> {
     const sql = 'insert into courseTable(course_id, course_name, clazz_id, cpi, link, course_cover) values ? on duplicate key update course_id = values(course_id)';
     connection.query(sql, [values], (err=> err && console.log(err, sql)));
 };
 
 const insertChapterTable = (values)=> {
-    const sql = `insert into chapterTable(course_id, chapter_id, chapter_type, chapter_name, catalog_name, cpi, clazzid, attachments, user_id, is_passed, form_data, question_id) values ?
+    const sql = `insert into chaptertable(course_id, chapter_id, chapter_type, chapter_name, catalog_name, cpi, clazzid, attachments, user_id, is_passed, form_data, question_id) values ?
                on duplicate key update
                is_passed = values(is_passed),
                chapter_name = values(chapter_name),
@@ -21,29 +21,29 @@ const insetUser = (values)=> {
 }
 
 const insertDecryptCharTable = (values)=> {
-    const sql = `insert into decryptcharTable(encryption, decrypt, uni_code, chapter_id) values ? on duplicate key update decrypt = values(decrypt)`
+    const sql = `insert into decryptchartable(encryption, decrypt, uni_code, chapter_id) values ? on duplicate key update decrypt = values(decrypt)`
     connection.query(sql, [values], (err=> err && console.log(err, sql)))
 };
 
 const insertQuestionTable = (values, chapter_id)=> {
-    const sql = `insert into questionTable(question_id, name, answer_list, question_type) values ? on duplicate key update name = values(name),answer_list=values(answer_list)`
+    const sql = `insert into questiontable(question_id, name, answer_list, question_type) values ? on duplicate key update name = values(name),answer_list=values(answer_list)`
     connection.query(sql, [values], (err)=> err && console.log(err, sql, chapter_id));
 }
 
 const updateChapterQuestionId = (values, chapterId)=> {
-    const sql = `update chapterTable set question_id=json_array_append(question_id, '$', CAST(? AS json)) where chapter_id=?`;
+    const sql = `update chaptertable set question_id=json_array_append(question_id, '$', CAST(? AS json)) where chapter_id=?`;
     connection.query(sql, [values, chapterId], (err)=> err && console.log(err, sql));
 }
 
 const updateChapterQuestionForm = (values, chapterId, userId)=> {
   // const sql = `insert into chapterTable(chapter_id, form_data) values ? on duplicate key update form_data = values(form_data)`;
-  const sql = `update chapterTable set form_data=json_array_append(form_data, '$', CAST(? AS json)) where chapter_id=? and user_id=?`;
+  const sql = `update chaptertable set form_data=json_array_append(form_data, '$', CAST(? AS json)) where chapter_id=? and user_id=?`;
   connection.query(sql, [values, chapterId, userId], (err=> err && console.log(err, sql)))
 };
 
 const updateChapterScore = (values, chapterId, userId)=> {
     // 更新当前章节的考试分数
-    const sql = `update chapterTable set score=?, is_passed=1 where chapter_id=? and user_id=?`;
+    const sql = `update chaptertable set score=?, is_passed=1 where chapter_id=? and user_id=?`;
     connection.query(sql, [values, chapterId, userId], (err=> err && console.log(err, sql)));
 }
 
